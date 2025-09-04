@@ -7,23 +7,25 @@
     <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
     <title>MemoryKeeper - Preserve Your Life Stories with AI</title>
     
-    <!-- Open Graph / Facebook -->
+    <!-- OpenGraph / Facebook -->
     <meta property="og:type" content="website">
-    <meta property="og:url" content="https://vibe-agents.onrender.com/">
+    <meta property="og:url" content="https://dandelion-member.org">
     <meta property="og:title" content="MemoryKeeper - AI-powered story collection">
     <meta property="og:description" content="Share your life stories with AI - Collaborator and Memory Keeper agents help capture and organize your memories">
     <meta property="og:site_name" content="MemoryKeeper">
     
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image">
-    <meta property="twitter:url" content="https://vibe-agents.onrender.com/">
+    <meta property="twitter:url" content="https://dandelion-member.org">
     <meta property="twitter:title" content="MemoryKeeper - AI-powered story collection">
     <meta property="twitter:description" content="Share your life stories with AI - Collaborator and Memory Keeper agents help capture and organize your memories">
-    
-    <!-- Import map for Firebase ESM modules (harmless on splash, used on chat page) -->
-    <script type="importmap" src="/importmap.json"></script>
-
+    <!-- css -->
     <link rel="stylesheet" href="css/splash.css">
+    <link rel="icon" type="image/png" href="/assets/images/favicon.png">
+    <!-- Expose environment before config -->
+    <script src="js/config.js"></script>
+    <script src="js/splash.js"></script>
+    <script type="module" src="https://mylife.ngrok.app/js/globals.mjs"></script>
 </head>
 <body>
     <!-- Background Video Container -->
@@ -34,7 +36,6 @@
             Your browser does not support the video tag.
         </video>
     </div>
-
     <!-- Landing Page Header -->
     <header id="landing-header" class="landing-header">
         <div class="header-container">
@@ -57,7 +58,7 @@
     <!-- Centered Login Section -->
     <div class="login-section">
         <div class="auth-container">
-            <!-- Auth Toggle -->
+            <!-- Auth Toggle @Mookse: disabled, go to HRP
             <div class="auth-toggle">
                 <button id="sign-in-btn" class="auth-toggle-btn active" data-mode="signin">
                     Sign In
@@ -66,35 +67,23 @@
                     Sign Up
                 </button>
             </div>
-
+            -->
             <!-- Auth Form -->
             <div class="auth-form">
                 <div class="form-group">
-                    <label for="email">Email Address</label>
+                    <label for="email">Member Id or Email</label>
                     <input type="email" id="email" placeholder="your@email.com" />
                 </div>
-
                 <div class="form-group">
-                    <label for="password">Password</label>
+                    <label for="password">Passphrase</label>
                     <input type="password" id="password" placeholder="••••••••" />
                 </div>
-
-                <div id="confirm-password-section" class="form-group hidden">
-                    <label for="confirm-password">Confirm Password</label>
-                    <input type="password" id="confirm-password" placeholder="••••••••" />
-                </div>
-
                 <button id="auth-submit-btn" class="auth-submit-btn">
-                    Sign In
+                    Log In
                 </button>
-
-                <div id="forgot-password-link" class="forgot-password">
-                    <a href="#forgot-password">Forgot your password?</a>
-                </div>
             </div>
         </div>
     </div>
-
     <!-- Footer -->
     <footer class="splash-footer">
         <p>&copy; 2025 MemoryKeeper. Your memories, preserved with care.</p>
@@ -126,12 +115,5 @@
             </div>
         </div>
     </div>
-
-    <!-- Expose environment before config -->
-    <script src="/env.js"></script>
-    <script src="js/config.js"></script>
-    <!-- Firebase client for splash authentication -->
-    <script type="module" src="js/firebase-config.js"></script>
-    <script src="js/splash.js"></script>
 </body>
 </html>

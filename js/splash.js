@@ -79,7 +79,6 @@ class SplashPage {
                 this.handleAuthToggle(e.target.dataset.mode);
             });
         });
-
         // Auth submit button
         const authSubmitBtn = document.getElementById('auth-submit-btn');
         if (authSubmitBtn) {
@@ -88,7 +87,6 @@ class SplashPage {
                 this.handleAuthSubmit();
             });
         }
-
         // How it Works link opens modal
         const howItWorksLink = document.getElementById('how-it-works-link');
         if (howItWorksLink) {
@@ -97,7 +95,6 @@ class SplashPage {
                 this.openHowItWorksModal();
             });
         }
-
         // In-page hash navigation for other nav links (do not block mailto links)
         const navLinks = document.querySelectorAll('.nav-link');
         navLinks.forEach(link => {
@@ -109,10 +106,8 @@ class SplashPage {
                 }
             });
         });
-
         // Modal listeners
         this.setupModalListeners();
-
         // Handle keyboard navigation
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
@@ -223,32 +218,28 @@ class SplashPage {
             this.showAuthError('Passwords do not match');
             return;
         }
-        
         // Add loading state
         const authSubmitBtn = document.getElementById('auth-submit-btn');
         if (authSubmitBtn) {
             authSubmitBtn.classList.add('loading');
             authSubmitBtn.textContent = 'Processing...';
         }
-        
         // Mark that user has started using the app
         localStorage.setItem('story-collection-used', 'true');
-        
-        // Real Firebase authentication via window.firebaseAuth
+        // Authenticate with Dandelion
         try {
-            if (!window.firebaseAuth) {
-                this.showAuthError('Authentication is not ready. Please wait a moment and try again.');
-                return;
-            }
+            let avatarName = 'Guest',
+                humanName = 'Guest User',
+                type = 'registration'; // default type
+            console.log('📧 Submitting auth for:', isSignUp, password);
             const result = isSignUp
-                ? await window.firebaseAuth.signUp(email, password)
-                : await window.firebaseAuth.signIn(email, password);
-            
-            if (!result?.success) {
-                this.showAuthError(result?.error || 'Authentication failed. Please try again.');
+                ? await window.Globals.datamanager.submitSignup({ avatarName, email, humanName, type })
+                : await window.Globals.datamanager.submitPassphrase(password, email);
+            if(!result){
+                this.showAuthError('Authentication failed. Please try again.');
                 return;
             }
-            console.log(`✅ ${isSignUp ? 'Account created' : 'Signed in'} successfully!`);
+            console.log(`✅ ${ isSignUp ? 'Account created' : 'Signed in' } successfully!`);
             this.continueToApp();
         } catch (error) {
             console.error('❌ Auth error:', error);
@@ -319,12 +310,10 @@ class SplashPage {
 
     continueToApp() {
         console.log('🎯 Redirecting to main app...');
-        
         // Smooth transition to main app
         document.body.style.opacity = '0';
         document.body.style.transition = 'opacity 0.5s ease-out';
-        
-        setTimeout(() => {
+        setTimeout(()=>{
             window.location.href = 'chat.html';
         }, 500);
     }

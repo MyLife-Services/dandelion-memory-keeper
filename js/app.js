@@ -712,37 +712,20 @@ function scheduleSSEReconnect(reason = 'unknown', delay = 1000) {
     }, delay);
     addLogEntry('info', 'SSE', { action: 'schedule_reconnect', reason, delay, attempt: sseReconnectAttempts }, true);
 }
-
 // Small helper to enforce client-side timeouts for fetch with Firebase auth
 async function fetchWithTimeout(resource, options = {}) {
     const { timeout = 20000, ...rest } = options;
-    
-    // Add Firebase auth token to headers if user is authenticated
-    const headers = { ...rest.headers };
-    if (window.firebaseAuth && window.firebaseAuth.isAuthenticated()) {
-        try {
-            const token = await window.firebaseAuth.getIdToken();
-            headers['Authorization'] = `Bearer ${token}`;
-        } catch (error) {
-            console.error('Failed to get Firebase token:', error);
-            // Continue without token - let server handle auth error
-        }
-    }
-    
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), timeout);
+    const timeoutPromise = new Promise((_, reject) => {
+        const id = setTimeout(() => reject(new Error('Request timed out')), timeout);
+        timeoutPromise.cleanup = () => clearTimeout(id);
+    });
     try {
-        const response = await fetch(resource, { 
-            ...rest, 
-            headers,
-            signal: controller.signal 
-        });
+        const response = await Promise.race([fetch(resource, rest), timeoutPromise]);
         return response;
     } finally {
-        clearTimeout(id);
+        if (timeoutPromise.cleanup) timeoutPromise.cleanup();
     }
 }
-
 /**
  * Sanitize error messages for user-friendly display to seniors
  */
@@ -1233,7 +1216,6 @@ async function sendMessage() {
     
     // Show typing indicator
     showTypingIndicator();
-    
     try {
         // Process both agents in parallel to cut latency
         const tasks = [
@@ -1321,17 +1303,13 @@ async function processWithMemoryKeeper(message) {
             model_used: data.debugInfo?.selectedModel,
             timestamp: new Date().toISOString()
         }, false);
-        
         const extractedMemories = data.memories;
-        
         // Do not render memories directly here; rely on SSE 'memory' events to avoid duplicates
         updateMemoryStatus('Complete');
-        
     } catch (error) {
         console.error('Memory Keeper Error:', error);
         const friendlyMessage = sanitizeErrorForUser(error);
         updateMemoryStatus('Unable to process memories: ' + friendlyMessage);
-        
         // Log the error
         addLogEntry('error', 'Memory Keeper', {
             error: error.message,

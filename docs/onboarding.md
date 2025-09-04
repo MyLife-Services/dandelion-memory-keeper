@@ -1,11 +1,11 @@
----
+# Welcome to MemoryKeeper
+
+```text
 id: onboarding
 version: v1
 purpose: Post-login onboarding modal content for chat.html
 updated: 2025-08-17
----
-
-# Welcome to MemoryKeeper
+```
 
 This short guide appears once after you sign in to help you get started.
 
@@ -20,11 +20,13 @@ This short guide appears once after you sign in to help you get started.
 
 ---
 
-- [ ] Don’t show this again  
+- [ ] Don’t show this again
+
 Click the primary button below to begin.
 
 Primary button label: “Got it, let’s start”
 
-Accessibility notes:
+Accessibility notes
+
 - Modal should have `role="dialog"`, `aria-modal="true"`, and an `aria-labelledby` pointing to the title.
 - Close via the X button, outside click, or the primary button.
