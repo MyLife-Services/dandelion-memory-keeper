@@ -140,7 +140,7 @@ class SplashPage {
         const cardHeader = document.querySelector('.card-header');
         if (cardHeader) {
             cardHeader.innerHTML = `
-                <h2>Welcome to MemoryKeeper</h2>
+                <h2>Welcome to Dandelion</h2>
                 <p>Share your life stories with AI agents who listen, understand, and help preserve your precious memories.</p>
             `;
         }
@@ -508,13 +508,6 @@ class SplashPage {
             console.error('❌ Magic link verification failed:', error);
             this.showError(error.message || 'Invalid or expired magic link');
         }
-    }
-
-    continueToApp() {
-        console.log('🚀 Continuing to main app...');
-        
-        // Redirect to main app
-        window.location.href = 'chat.html';
     }
 
     showStep(stepName) {

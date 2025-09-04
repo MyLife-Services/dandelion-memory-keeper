@@ -254,7 +254,7 @@ class AppHeader {
         }
 
         const messages = chatMessages.querySelectorAll('.message');
-        let exportText = 'MemoryKeeper Chat Export\n';
+        let exportText = 'Dandelion Chat Export\n';
         exportText += '========================\n\n';
 
         messages.forEach(message => {
@@ -284,55 +284,18 @@ class AppHeader {
         const notification = document.createElement('div');
         notification.className = 'app-notification';
         notification.textContent = message;
-        notification.style.cssText = `
-            position: fixed;
-            top: 5rem;
-            right: 1rem;
-            background: #2c3e50;
-            color: white;
-            padding: 0.75rem 1rem;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-            z-index: 1001;
-            font-size: 0.9rem;
-            font-weight: 500;
-            animation: slideInRight 0.3s ease-out;
-        `;
-
-        // Add animation keyframes if not already added
-        if (!document.querySelector('#app-notification-styles')) {
-            const style = document.createElement('style');
-            style.id = 'app-notification-styles';
-            style.textContent = `
-                @keyframes slideInRight {
-                    from {
-                        transform: translateX(100%);
-                        opacity: 0;
-                    }
-                    to {
-                        transform: translateX(0);
-                        opacity: 1;
-                    }
-                }
-                @keyframes slideOutRight {
-                    from {
-                        transform: translateX(0);
-                        opacity: 1;
-                    }
-                    to {
-                        transform: translateX(100%);
-                        opacity: 0;
-                    }
-                }
-            `;
-            document.head.appendChild(style);
-        }
 
         document.body.appendChild(notification);
 
+        // Trigger show animation
+        setTimeout(() => {
+            notification.classList.add('show');
+        }, 10);
+
         // Auto-remove after 3 seconds
         setTimeout(() => {
-            notification.style.animation = 'slideOutRight 0.3s ease-out';
+            notification.classList.remove('show');
+            notification.classList.add('hide');
             setTimeout(() => {
                 if (notification.parentNode) {
                     notification.parentNode.removeChild(notification);

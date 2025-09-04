@@ -2139,8 +2139,8 @@ function showContinuationPrompt() {
 function startInitialConversation() {
     // Add initial collaborator message, personalized if we know the user's name
     const greeting = currentUserName && currentUserName.trim()
-        ? `Hello ${currentUserName}! I'm so glad you're here to share your stories with me. I'm your Collaborator, and I'll be asking thoughtful questions to help you share your memories. The Memory Keeper will be organizing everything we discuss.\n\nWould you like to continue from where we left off, or start a new story?`
-        : `Hello! I'm so glad you're here to share your stories with me. I'm your Collaborator, and I'll be asking thoughtful questions to help you share your memories. The Memory Keeper will be organizing everything we discuss.\n\nLet's start with something simple - could you tell me your name and where you grew up?`;
+        ? `Hello ${currentUserName}! I'm so glad you're here to share your stories with me. I'm your Collaborator, and I'll be asking thoughtful questions to help you share your memories. Dandelion will be organizing everything we discuss.\n\nWould you like to continue from where we left off, or start a new story?`
+        : `Hello! I'm so glad you're here to share your stories with me. I'm your Collaborator, and I'll be asking thoughtful questions to help you share your memories. Dandelion will be organizing everything we discuss.\n\nLet's start with something simple - could you tell me your name and where you grew up?`;
     addMessage('ai', 'collaborator', greeting, { timestamp: new Date().toLocaleTimeString() });
     
     // Mark that we've started the session

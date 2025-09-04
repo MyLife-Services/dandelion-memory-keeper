@@ -38,14 +38,14 @@
       <div id="onboarding-modal" class="onboarding-modal hidden" role="dialog" aria-modal="true" aria-labelledby="onboarding-title">
         <div class="onboarding-modal-content">
           <div class="onboarding-header">
-            <h2 id="onboarding-title">Welcome to MemoryKeeper</h2>
+            <h2 id="onboarding-title">Welcome to Dandelion</h2>
             <button class="onboarding-close" id="onboarding-close-btn" aria-label="Close">&times;</button>
           </div>
           <div class="onboarding-body">
             <ol class="onboarding-steps">
               <li><strong>Say hello</strong> and share a short memory or topic you’d like to talk about.</li>
               <li>The <strong>Collaborator</strong> will respond warmly and ask gentle follow-ups.</li>
-              <li>The <strong>Memory Keeper</strong> quietly extracts <em>People, Dates, Places, Relationships, Events</em> into the panel on the right.</li>
+              <li><strong>Dandelion</strong> quietly extracts <em>People, Dates, Places, Relationships, Events</em> into the panel on the right.</li>
               <li>You can <strong>reset</strong> the chat anytime or <strong>export</strong> your conversation from the header.</li>
             </ol>
             <div class="onboarding-tip">Tip: short, specific memories work best. For example, “Tell me about your first job” or “What was Grandma like?”</div>

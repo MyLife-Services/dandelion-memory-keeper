@@ -6,14 +6,65 @@
 }
 
 :root {
-    --primary-gradient: linear-gradient(135deg, #FFD700, #8B4513);
-    --header-gradient: linear-gradient(135deg, #2c3e50, #34495e);
-    --ai-message-gradient: linear-gradient(135deg, #3498db, #2980b9);
-    --ai-avatar-gradient: linear-gradient(135deg, #27ae60, #229954);
-    --user-avatar-gradient: linear-gradient(135deg, #f39c12, #e67e22);
-    --button-gradient: linear-gradient(135deg, #3498db, #2980b9);
-    --memory-gradient: linear-gradient(135deg, #9b59b6, #8e44ad);
+    /* Typography */
+    --font-primary: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     
+    /* Primary Palette */
+    --primary-gold: #D4A574;
+    --primary-gold-light: #E6C59C;
+    --primary-gold-dark: #B8915F;
+    --primary-gold-soft: #F5E6D3;
+    --primary-gold-glow: #FFD700;
+    
+    /* Secondary Palette */
+    --secondary-blue: #5B9FD9;
+    --secondary-blue-light: #7FB4E3;
+    --secondary-blue-dark: #4682B4;
+    --secondary-purple: #9B7EBD;
+    --secondary-coral: #E76B74;
+    
+    /* Neutral Palette */
+    --neutral-100: #FFFFFF;
+    --neutral-200: #F8F9FA;
+    --neutral-300: #E9ECEF;
+    --neutral-400: #CED4DA;
+    --neutral-500: #ADB5BD;
+    --neutral-600: #6C757D;
+    --neutral-700: #495057;
+    --neutral-800: #343A40;
+    --neutral-900: #212529;
+    
+    /* Dark Mode / Overlay Palette */
+    --dark-overlay-900: rgba(0, 0, 0, 0.95);
+    --dark-overlay-800: rgba(0, 0, 0, 0.85);
+    --dark-overlay-700: rgba(0, 0, 0, 0.75);
+    --dark-overlay-600: rgba(0, 0, 0, 0.60);
+    --dark-overlay-400: rgba(0, 0, 0, 0.40);
+    --dark-surface: rgba(33, 37, 41, 0.95);
+    
+    /* Glassmorphism Effects */
+    --glass-white: rgba(255, 255, 255, 0.1);
+    --glass-white-border: rgba(255, 255, 255, 0.2);
+    --glass-dark: rgba(0, 0, 0, 0.5);
+    --glass-blur: blur(10px);
+    --glass-blur-heavy: blur(20px);
+    
+    /* Design System Gradients */
+    --primary-gradient: linear-gradient(135deg, var(--primary-gold), var(--primary-gold-dark));
+    --header-gradient: linear-gradient(135deg, var(--neutral-800), var(--neutral-700));
+    --ai-message-gradient: linear-gradient(135deg, var(--secondary-blue), var(--secondary-blue-dark));
+    --ai-avatar-gradient: linear-gradient(135deg, var(--primary-gold), var(--primary-gold-dark));
+    --user-avatar-gradient: linear-gradient(135deg, var(--secondary-coral), var(--primary-gold));
+    --button-gradient: linear-gradient(135deg, var(--secondary-blue), var(--secondary-blue-dark));
+    --memory-gradient: linear-gradient(135deg, var(--secondary-purple), var(--secondary-blue));
+    
+    /* Responsive Breakpoints */
+    --breakpoint-sm: 576px;
+    --breakpoint-md: 768px;
+    --breakpoint-lg: 992px;
+    --breakpoint-xl: 1200px;
+    
+    /* Utilities */
     --border-radius-lg: 12px;
     --border-radius-md: 8px;
     --border-radius-sm: 6px;
@@ -27,7 +78,8 @@
     --transition-medium: all 0.3s ease;
     --transition-slow: all 0.5s ease;
     
-    --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    /* Legacy compatibility */
+    --font-sans: var(--font-primary);
 }
 
 body {
@@ -159,6 +211,13 @@ body {
     margin: 0;
 }
 
+/* Logo image styling */
+.app-logo .logo-img {
+    height: 2.5rem;
+    width: auto;
+    display: block;
+}
+
 .app-controls {
     display: flex;
     align-items: center;
@@ -180,55 +239,60 @@ body {
 }
 
 .artifact-btn {
-    background: var(--button-gradient); /* Primary CTA: blue */
+    background: var(--button-gradient);
     color: white;
+    font-family: var(--font-primary);
 }
 
 .artifact-btn:hover {
-    background: #2980b9;
+    background: var(--secondary-blue-light);
     transform: translateY(-1px);
 }
 
 .reset-btn {
-    background: #e74c3c; /* Destructive: red */
+    background: var(--secondary-coral);
     color: white;
+    font-family: var(--font-primary);
 }
 
 .reset-btn:hover {
-    background: #c0392b;
+    background: #c55865;
     transform: translateY(-1px);
 }
 
 .export-btn {
-    background: white; /* Secondary: outline */
-    color: #2c3e50;
-    border: 2px solid #cbd5e1; /* Thicker border for clarity */
+    background: var(--neutral-100);
+    color: var(--neutral-800);
+    border: 2px solid var(--neutral-400);
+    font-family: var(--font-primary);
 }
 
 .export-btn:hover {
-    background: #f1f3f5;
+    background: var(--neutral-200);
     transform: translateY(-1px);
 }
 
 .model-btn {
-    background: #3498db;
+    background: var(--secondary-blue);
     color: white;
+    font-family: var(--font-primary);
 }
 
 .model-btn:hover {
-    background: #2980b9;
+    background: var(--secondary-blue-dark);
     transform: translateY(-1px);
 }
 
 /* Tertiary: Logout ghost button */
 .logout-btn {
-    background: white;
-    color: #2c3e50;
-    border: 2px solid #cbd5e1; /* Always-visible border */
+    background: var(--neutral-100);
+    color: var(--neutral-800);
+    border: 2px solid var(--neutral-400);
+    font-family: var(--font-primary);
 }
 
 .logout-btn:hover {
-    background: #f8f9fa;
+    background: var(--neutral-200);
     transform: translateY(-1px);
 }
 
@@ -567,6 +631,7 @@ body {
     background: var(--ai-message-gradient);
     color: white;
     border-bottom-left-radius: 6px;
+    font-family: var(--font-primary);
 }
 
 .message.ai.system .message-bubble {
@@ -583,10 +648,11 @@ body {
 }
 
 .message.user .message-bubble {
-    background: white;
-    color: #333;
-    border: 1px solid #e1e8ed;
+    background: var(--neutral-100);
+    color: var(--neutral-800);
+    border: 1px solid var(--neutral-300);
     border-bottom-right-radius: 6px;
+    font-family: var(--font-primary);
 }
 
 .message-meta {
@@ -736,8 +802,8 @@ body {
 .memory-panel {
     width: 350px;
     min-width: 350px;
-    background: #e6ecf5; /* darker for stronger separation */
-    border-left: 1px solid #e1e8ed;
+    background: var(--neutral-200);
+    border-left: 1px solid var(--neutral-300);
     display: flex;
     flex-direction: column;
     /* Constrain memory panel height; inner content scrolls */
@@ -758,6 +824,7 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    font-family: var(--font-primary);
 }
 
 /* Collaborator chat header (mirrors memory header height, different color) */
@@ -833,9 +900,10 @@ body {
 
 .memory-section h4 {
     font-size: 1em;
-    color: #2c3e50;
+    color: var(--neutral-800);
     margin-bottom: 10px;
     font-weight: 600;
+    font-family: var(--font-primary);
     display: flex;
     align-items: center;
     gap: 8px;
@@ -874,44 +942,47 @@ body {
 }
 
 .memory-item {
-    background: #f8f9fa;
+    background: var(--neutral-100);
     padding: 12px;
     margin: 8px 0;
-    border-radius: 6px;
-    border-left: 4px solid #007bff;
+    border-radius: var(--border-radius-sm);
+    border-left: 4px solid var(--secondary-blue);
     font-size: 14px;
     line-height: 1.4;
+    font-family: var(--font-primary);
 }
 
 /* Narrator memory item variant */
 .memory-item.narrator {
-    border-left-color: #ff9800;
-    background: #fff8e6;
+    border-left-color: var(--primary-gold);
+    background: var(--primary-gold-soft);
     cursor: pointer;
 }
 
 .memory-item.narrator:hover {
-    background: #ffefcc;
+    background: var(--primary-gold-light);
 }
 
 .memory-title {
     font-weight: 600;
-    color: #2c3e50;
+    color: var(--neutral-800);
     margin-bottom: 4px;
     font-size: 15px;
+    font-family: var(--font-primary);
 }
 
 .memory-detail {
-    color: #6c757d;
+    color: var(--neutral-600);
     font-size: 13px;
     margin: 2px 0;
     padding-left: 8px;
-    border-left: 2px solid #e9ecef;
+    border-left: 2px solid var(--neutral-300);
     margin-left: 4px;
+    font-family: var(--font-primary);
 }
 
 .memory-item:hover {
-    background: #e9ecef;
+    background: var(--neutral-200);
     transition: background-color 0.2s ease;
 }
 
@@ -927,10 +998,11 @@ body {
 }
 
 .memory-placeholder {
-    color: #999;
+    color: var(--neutral-500);
     font-style: italic;
     font-size: 0.85em;
     padding: 10px 0;
+    font-family: var(--font-primary);
 }
 
 
@@ -990,6 +1062,11 @@ body {
     .app-logo h1 {
         font-size: 1.1rem;
         white-space: nowrap;
+    }
+    
+    /* Smaller logo on mobile */
+    .app-logo .logo-img {
+        height: 2rem;
     }
     
     .app-controls {
@@ -1137,4 +1214,35 @@ body {
 
 @keyframes spinner-rotate {
     to { transform: rotate(360deg); }
+}
+
+/* App Notification Styles */
+.app-notification {
+    position: fixed;
+    top: 5rem;
+    right: 1rem;
+    background: var(--neutral-800);
+    color: var(--neutral-100);
+    padding: 0.75rem 1rem;
+    border-radius: var(--border-radius-md);
+    box-shadow: var(--shadow-lg);
+    z-index: 1001;
+    font-size: 0.9rem;
+    font-family: var(--font-primary);
+    font-weight: 500;
+    transform: translateX(100%);
+    opacity: 0;
+    transition: all 0.3s ease;
+    max-width: 300px;
+    word-wrap: break-word;
+}
+
+.app-notification.show {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+.app-notification.hide {
+    transform: translateX(100%);
+    opacity: 0;
 }

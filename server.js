@@ -93,9 +93,9 @@ app.use(helmet({
         directives: {
             defaultSrc: ["'self'"],
             scriptSrc: ["'self'", "https://www.gstatic.com"],
-            styleSrc: ["'self'", "'unsafe-hashes'"],
+            styleSrc: ["'self'", "'unsafe-hashes'", "https://fonts.googleapis.com"],
             imgSrc: ["'self'", "data:", "https:"],
-            fontSrc: ["'self'"],
+            fontSrc: ["'self'", "https://fonts.gstatic.com"],
             connectSrc: ["'self'", "https://api.anthropic.com", "https://identitytoolkit.googleapis.com", "https://securetoken.googleapis.com"],
             objectSrc: ["'none'"],
             baseUri: ["'self'"],

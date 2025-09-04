@@ -11,14 +11,14 @@ import {
     sendPasswordResetEmail
 } from 'https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js';
 
-// Firebase configuration - these values should be set via environment variables
+// Firebase configuration - use window.ENV which is loaded from /env.js
 const firebaseConfig = {
-    apiKey: window.FIREBASE_CONFIG?.apiKey || "your-api-key",
-    authDomain: window.FIREBASE_CONFIG?.authDomain || "your-project.firebaseapp.com",
-    projectId: window.FIREBASE_CONFIG?.projectId || "your-project-id",
-    storageBucket: window.FIREBASE_CONFIG?.storageBucket || "your-project.appspot.com",
-    messagingSenderId: window.FIREBASE_CONFIG?.messagingSenderId || "123456789",
-    appId: window.FIREBASE_CONFIG?.appId || "your-app-id"
+    apiKey: window.ENV?.FIREBASE_API_KEY,
+    authDomain: window.ENV?.FIREBASE_AUTH_DOMAIN,
+    projectId: window.ENV?.FIREBASE_PROJECT_ID,
+    storageBucket: window.ENV?.FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: window.ENV?.FIREBASE_MESSAGING_SENDER_ID,
+    appId: window.ENV?.FIREBASE_APP_ID
 };
 
 // Initialize Firebase
@@ -266,4 +266,3 @@ window.firebaseAuth = {
 // Signal to the rest of the app that Firebase auth is ready
 try { console.log('[firebase] dispatch firebase-ready @', Date.now()); } catch (_) {}
 window.dispatchEvent(new Event('firebase-ready'));
-
