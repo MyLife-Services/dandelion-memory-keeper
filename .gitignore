@@ -136,4 +136,6 @@ venv/
 ENV/
 env/
 
-
+# certs
+*.pem
+*.crt
