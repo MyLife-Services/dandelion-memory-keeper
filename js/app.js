@@ -465,6 +465,73 @@ const SSE_RATE_LIMIT_MS = 5000; // Don't attempt connections more than once per 
 const MAX_SSE_ATTEMPTS_PER_MINUTE = 10;
 // New vs Returning flag (computed during bootstrap)
 let isNewUserFlag = null;
+// TTS state
+let ttsEnabled = true; // Auto-play AI responses by default
+let currentAudio = null; // Track currently playing audio
+let isSpeaking = false;
+let ttsMuted = false; // User-controlled mute
+let currentTtsController = null; // AbortController for in-flight TTS request
+
+function loadTtsMuted() {
+    try {
+        const v = localStorage.getItem('ttsMuted');
+        ttsMuted = v === 'true';
+    } catch (_) { ttsMuted = false; }
+}
+
+function saveTtsMuted() {
+    try { localStorage.setItem('ttsMuted', String(ttsMuted)); } catch (_) {}
+}
+
+function updateMuteUI() {
+    const btn = document.getElementById('mute-tts-btn');
+    const label = document.getElementById('mute-tts-label');
+    if (btn) {
+        btn.classList.toggle('active', ttsMuted);
+    }
+    if (label) {
+        label.textContent = ttsMuted ? 'Unmute' : 'Mute';
+    }
+}
+
+// Voice availability (server-driven)
+let voiceAvailable = { enabled: true, breakerActive: false, downUntil: null };
+
+async function refreshVoiceAvailability() {
+    try {
+        const resp = await fetchWithTimeout('/api/health', { method: 'GET', timeout: 8000 });
+        if (!resp.ok) throw new Error('health_' + resp.status);
+        const data = await resp.json();
+        const v = data.voice || {};
+        voiceAvailable.enabled = !!v.enabled;
+        voiceAvailable.breakerActive = !!v.breakerActive;
+        voiceAvailable.downUntil = v.downUntil || null;
+        // Disable TTS if breaker active or disabled
+        ttsEnabled = !!(voiceAvailable.enabled && !voiceAvailable.breakerActive);
+        updateVoiceUI();
+    } catch (e) {
+        // On failure, do not change current state
+        console.warn('Voice health check failed:', e.message || e);
+    }
+}
+
+function updateVoiceUI() {
+    const micBtn = document.getElementById('mic-btn');
+    const micIcon = document.getElementById('mic-icon');
+    const disabled = !(voiceAvailable.enabled && !voiceAvailable.breakerActive);
+    if (micBtn) {
+        micBtn.disabled = disabled;
+        micBtn.title = disabled
+            ? 'Voice features are temporarily unavailable. You can still type your message.'
+            : 'Hold to record your message';
+        if (disabled) {
+            micBtn.classList.add('disabled');
+            if (micIcon) micIcon.textContent = '🎤';
+        } else {
+            micBtn.classList.remove('disabled');
+        }
+    }
+}
 
 // User preferences helpers
 function getValidatedDisplayName(raw) {
@@ -786,6 +853,14 @@ function sanitizeErrorForUser(error) {
 // Initialize the application
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('🎬 DOM loaded, initializing app...');
+    // Load mute preference and update UI
+    loadTtsMuted();
+    updateMuteUI();
+    // Voice availability: check immediately and then periodically
+    try {
+        await refreshVoiceAvailability();
+    } catch (_) {}
+    setInterval(() => { refreshVoiceAvailability(); }, 60 * 1000);
     
     // Add error handling for browser extension conflicts
     window.addEventListener('error', (event) => {
@@ -1016,6 +1091,406 @@ function initializeInput() {
             }
         });
     }
+
+    // Initialize voice recording
+    initializeVoiceRecording();
+}
+
+/**
+ * Voice Recording Module
+ */
+let mediaRecorder = null;
+let audioChunks = [];
+let recordingStartTime = null;
+let recordingTimerInterval = null;
+let isRecording = false;
+// Recording format negotiated per-browser
+let recordingMimeType = 'audio/webm;codecs=opus';
+let recordingFileExt = 'webm';
+
+function selectRecordingFormat() {
+    // Prefer WebM Opus (Chrome/Edge), then MP4 (Safari), then Ogg Opus (Firefox)
+    const candidates = [
+        { mime: 'audio/webm;codecs=opus', ext: 'webm' },
+        { mime: 'audio/webm', ext: 'webm' },
+        { mime: 'audio/mp4', ext: 'm4a' },
+        { mime: 'audio/ogg;codecs=opus', ext: 'ogg' },
+        { mime: 'audio/ogg', ext: 'ogg' }
+    ];
+    for (const c of candidates) {
+        try {
+            if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(c.mime)) {
+                recordingMimeType = c.mime;
+                recordingFileExt = c.ext;
+                return;
+            }
+        } catch (_) {}
+    }
+    // Fallbacks when isTypeSupported not available
+    recordingMimeType = 'audio/webm';
+    recordingFileExt = 'webm';
+}
+
+function initializeVoiceRecording() {
+    const micBtn = document.getElementById('mic-btn');
+    const stopBtn = document.getElementById('stop-recording-btn');
+
+    if (micBtn) {
+        micBtn.addEventListener('click', toggleRecording);
+    }
+
+    if (stopBtn) {
+        stopBtn.addEventListener('click', stopRecording);
+    }
+}
+
+async function toggleRecording() {
+    if (isRecording) {
+        await stopRecording();
+    } else {
+        await startRecording();
+    }
+}
+
+async function startRecording() {
+    try {
+        // Request microphone permission
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+        // Initialize MediaRecorder
+        selectRecordingFormat();
+        try {
+            mediaRecorder = new MediaRecorder(stream, { mimeType: recordingMimeType });
+        } catch (_) {
+            mediaRecorder = new MediaRecorder(stream);
+        }
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+                audioChunks.push(event.data);
+            }
+        };
+
+        mediaRecorder.onstop = async () => {
+            // Create audio blob from chunks
+            const audioBlob = new Blob(audioChunks, { type: recordingMimeType });
+
+            // Send to transcription API
+            const filename = `recording.${recordingFileExt}`;
+            await transcribeAudio(audioBlob, filename);
+
+            // Stop all tracks to release microphone
+            stream.getTracks().forEach(track => track.stop());
+        };
+
+        // Start recording
+        mediaRecorder.start();
+        isRecording = true;
+        recordingStartTime = Date.now();
+
+        // Update UI
+        showRecordingIndicator();
+        updateMicButtonState(true);
+
+        // Start timer
+        startRecordingTimer();
+
+        console.log('🎤 Recording started');
+
+    } catch (error) {
+        console.error('Error starting recording:', error);
+
+        let errorMessage = 'Could not access microphone.';
+        if (error.name === 'NotAllowedError') {
+            errorMessage = 'Microphone permission denied. Please allow microphone access in your browser settings.';
+        } else if (error.name === 'NotFoundError') {
+            errorMessage = 'No microphone found. Please connect a microphone and try again.';
+        }
+
+        addMessage('system', 'system', errorMessage, { timestamp: new Date().toLocaleTimeString() });
+    }
+}
+
+async function stopRecording() {
+    if (!mediaRecorder || !isRecording) return;
+
+    // Stop the media recorder
+    mediaRecorder.stop();
+    isRecording = false;
+
+    // Update UI
+    hideRecordingIndicator();
+    updateMicButtonState(false);
+    stopRecordingTimer();
+
+    console.log('🎤 Recording stopped');
+}
+
+function showRecordingIndicator() {
+    const indicator = document.getElementById('recording-indicator');
+    if (indicator) {
+        indicator.classList.remove('hidden');
+    }
+}
+
+function hideRecordingIndicator() {
+    const indicator = document.getElementById('recording-indicator');
+    if (indicator) {
+        indicator.classList.add('hidden');
+    }
+}
+
+function updateMicButtonState(recording) {
+    const micBtn = document.getElementById('mic-btn');
+    const micIcon = document.getElementById('mic-icon');
+
+    if (micBtn) {
+        if (recording) {
+            micBtn.classList.add('recording');
+            if (micIcon) micIcon.textContent = '⏹️';
+        } else {
+            micBtn.classList.remove('recording');
+            if (micIcon) micIcon.textContent = '🎤';
+        }
+    }
+}
+
+function startRecordingTimer() {
+    const timerEl = document.getElementById('recording-timer');
+    if (!timerEl) return;
+
+    recordingTimerInterval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+        const minutes = Math.floor(elapsed / 60);
+        const seconds = elapsed % 60;
+        timerEl.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }, 1000);
+}
+
+function stopRecordingTimer() {
+    if (recordingTimerInterval) {
+        clearInterval(recordingTimerInterval);
+        recordingTimerInterval = null;
+    }
+
+    const timerEl = document.getElementById('recording-timer');
+    if (timerEl) {
+        timerEl.textContent = '0:00';
+    }
+}
+
+async function transcribeAudio(audioBlob, filename = 'recording.webm') {
+    try {
+        // Show typing indicator
+        showTypingIndicator();
+
+        // Create form data with audio file
+        const formData = new FormData();
+        formData.append('audio', audioBlob, filename);
+
+        // Get Firebase auth token
+        let headers = {};
+        if (window.firebaseAuth && window.firebaseAuth.isAuthenticated()) {
+            try {
+                const token = await window.firebaseAuth.getIdToken();
+                headers['Authorization'] = `Bearer ${token}`;
+            } catch (error) {
+                console.error('Failed to get Firebase token:', error);
+            }
+        }
+
+        // Send to transcription endpoint
+        const response = await fetch('/api/transcribe', {
+            method: 'POST',
+            headers: headers,
+            body: formData
+        });
+
+        if (!response.ok) {
+            if (response.status === 503) {
+                // Voice unavailable; disable UI and inform user
+                voiceAvailable.breakerActive = true;
+                ttsEnabled = false;
+                updateVoiceUI();
+                addMessage('system', 'system',
+                    'Voice features are temporarily unavailable. You can continue by typing your message.',
+                    { timestamp: new Date().toLocaleTimeString() }
+                );
+                return;
+            }
+            throw new Error(`Transcription failed: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const transcript = data.transcript;
+
+        if (transcript && transcript.trim()) {
+            // Put transcribed text into input field
+            const input = document.getElementById('chat-input');
+            if (input) {
+                input.value = transcript;
+                input.focus();
+            }
+
+            // Auto-send the transcribed message
+            await sendMessage();
+        } else {
+            addMessage('system', 'system',
+                "I couldn't hear anything. Please try recording again and speak a bit louder.",
+                { timestamp: new Date().toLocaleTimeString() }
+            );
+        }
+
+    } catch (error) {
+        console.error('Transcription error:', error);
+        addMessage('system', 'system',
+            'Sorry, I had trouble understanding the recording. Please try typing your message instead.',
+            { timestamp: new Date().toLocaleTimeString() }
+        );
+    } finally {
+        hideTypingIndicator();
+    }
+}
+
+/**
+ * Text-to-Speech Module
+ */
+async function speakText(text, messageElement) {
+    // Stop any currently playing audio
+    stopSpeaking();
+
+    if (!ttsEnabled || ttsMuted || !text || text.trim().length === 0) {
+        return;
+    }
+
+    try {
+        isSpeaking = true;
+
+        // Add speaking indicator to message
+        if (messageElement) {
+            addSpeakingIndicator(messageElement);
+        }
+
+        // Get Firebase auth token
+        let headers = {
+            'Content-Type': 'application/json'
+        };
+
+        if (window.firebaseAuth && window.firebaseAuth.isAuthenticated()) {
+            try {
+                const token = await window.firebaseAuth.getIdToken();
+                headers['Authorization'] = `Bearer ${token}`;
+            } catch (error) {
+                console.error('Failed to get Firebase token:', error);
+            }
+        }
+
+        // Prepare abortable request
+        if (currentTtsController) {
+            try { currentTtsController.abort(); } catch (_) {}
+        }
+        currentTtsController = new AbortController();
+
+        // Request TTS from server
+        const response = await fetch('/api/tts', {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify({
+                text: text,
+                voice: 'nova', // Warm, friendly voice
+                speed: 0.9 // Slightly slower for elderly users
+            }),
+            signal: currentTtsController.signal
+        });
+
+        if (!response.ok) {
+            if (response.status === 503) {
+                // Voice unavailable; disable auto TTS and inform user once
+                voiceAvailable.breakerActive = true;
+                ttsEnabled = false;
+                updateVoiceUI();
+                addMessage('system', 'system',
+                    'Speech playback is temporarily unavailable due to service limits. I will continue responding in text.',
+                    { timestamp: new Date().toLocaleTimeString(), skipSave: true }
+                );
+                return;
+            }
+            throw new Error(`TTS failed: ${response.status}`);
+        }
+
+        // Create audio from response
+        const audioBlob = await response.blob();
+        const audioUrl = URL.createObjectURL(audioBlob);
+
+        currentAudio = new Audio(audioUrl);
+
+        currentAudio.onended = () => {
+            isSpeaking = false;
+            URL.revokeObjectURL(audioUrl);
+            if (messageElement) {
+                removeSpeakingIndicator(messageElement);
+            }
+        };
+
+        currentAudio.onerror = (error) => {
+            console.error('Audio playback error:', error);
+            isSpeaking = false;
+            URL.revokeObjectURL(audioUrl);
+            if (messageElement) {
+                removeSpeakingIndicator(messageElement);
+            }
+        };
+
+        // Play the audio (skip if muted after fetch completes)
+        if (!ttsMuted) {
+            await currentAudio.play();
+        }
+
+    } catch (error) {
+        if (error?.name === 'AbortError') {
+            // Silently ignore aborted requests
+            return;
+        }
+        console.error('TTS error:', error);
+        isSpeaking = false;
+        if (messageElement) {
+            removeSpeakingIndicator(messageElement);
+        }
+    }
+}
+
+function stopSpeaking() {
+    if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+        currentAudio = null;
+    }
+    isSpeaking = false;
+}
+
+function addSpeakingIndicator(messageElement) {
+    // Remove any existing indicators first
+    removeSpeakingIndicator(messageElement);
+
+    const indicator = document.createElement('div');
+    indicator.className = 'speaking-indicator';
+    indicator.innerHTML = `
+        <span class="speaking-icon">🔊</span>
+        <span class="speaking-text">Speaking...</span>
+    `;
+
+    const messageBubble = messageElement.querySelector('.message-bubble');
+    if (messageBubble) {
+        messageBubble.appendChild(indicator);
+    }
+}
+
+function removeSpeakingIndicator(messageElement) {
+    const indicator = messageElement.querySelector('.speaking-indicator');
+    if (indicator) {
+        indicator.remove();
+    }
 }
 
 /**
@@ -1037,13 +1512,7 @@ function initializeButtons() {
     // Export button
     const exportBtn = document.getElementById('export-btn');
     if (exportBtn) {
-        exportBtn.addEventListener('click', exportSession);
-    }
-    
-    // Start story button (in modal)
-    const startStoryBtn = document.getElementById('start-story-btn');
-    if (startStoryBtn) {
-        startStoryBtn.addEventListener('click', startStorySession);
+        exportBtn.addEventListener('click', exportLog);
     }
     
     // Logging control buttons
@@ -1055,6 +1524,35 @@ function initializeButtons() {
     const exportLogBtn = document.getElementById('export-log-btn');
     if (exportLogBtn) {
         exportLogBtn.addEventListener('click', exportLog);
+    }
+
+    // Mute TTS button
+    const muteBtn = document.getElementById('mute-tts-btn');
+    if (muteBtn) {
+        muteBtn.addEventListener('click', () => {
+            ttsMuted = !ttsMuted;
+            saveTtsMuted();
+            updateMuteUI();
+            if (ttsMuted) {
+                stopSpeaking();
+                if (currentTtsController) {
+                    try { currentTtsController.abort(); } catch (_) {}
+                    currentTtsController = null;
+                }
+            }
+        });
+    }
+
+    // Skip current TTS playback
+    const skipBtn = document.getElementById('skip-tts-btn');
+    if (skipBtn) {
+        skipBtn.addEventListener('click', () => {
+            if (currentTtsController) {
+                try { currentTtsController.abort(); } catch (_) {}
+                currentTtsController = null;
+            }
+            stopSpeaking();
+        });
     }
 }
 
@@ -1449,48 +1947,56 @@ async function processWithCollaborator(message) {
 function addMessage(type, agent, content, metadata = {}) {
     const messagesContainer = document.getElementById('chat-messages');
     if (!messagesContainer) return;
-    
+
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${type}`;
-    
+
     const avatar = document.createElement('div');
     avatar.className = `message-avatar ${type}`;
     avatar.textContent = type === 'user' ? '👤' : (agent === 'collaborator' ? '🤝' : '🧠');
-    
+
     const contentDiv = document.createElement('div');
     contentDiv.className = 'message-content';
-    
+
     const bubble = document.createElement('div');
     bubble.className = 'message-bubble';
     bubble.textContent = content;
-    
+
     const meta = document.createElement('div');
     meta.className = 'message-meta';
-    
+
     if (type === 'ai') {
         const badge = document.createElement('span');
         badge.className = 'agent-badge';
         badge.textContent = agent === 'collaborator' ? 'Collaborator' : 'Memory Keeper';
         meta.appendChild(badge);
     }
-    
+
     if (metadata.timestamp) {
         const timestamp = document.createElement('span');
         timestamp.textContent = metadata.timestamp;
         meta.appendChild(timestamp);
     }
-    
+
     contentDiv.appendChild(bubble);
     if (meta.children.length > 0) {
         contentDiv.appendChild(meta);
     }
-    
+
     messageDiv.appendChild(avatar);
     messageDiv.appendChild(contentDiv);
-    
+
     messagesContainer.appendChild(messageDiv);
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
-    
+
+    // Auto-play TTS for AI messages (collaborator only, not system messages)
+    if (type === 'ai' && agent === 'collaborator' && ttsEnabled && !metadata.skipSave) {
+        // Small delay to let message render, then speak
+        setTimeout(() => {
+            speakText(content, messageDiv);
+        }, 500);
+    }
+
     // Store in session
     currentSession.messages.push({
         type,
@@ -1498,7 +2004,7 @@ function addMessage(type, agent, content, metadata = {}) {
         content,
         timestamp: metadata.timestamp || new Date().toISOString()
     });
-    
+
     // Auto-save encrypted session data (unless this is a restoration)
     if (!metadata.skipSave) {
         scheduleSecureSave();

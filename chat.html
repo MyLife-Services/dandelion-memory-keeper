@@ -86,6 +86,18 @@
                         <span class="btn-text">Export</span>
                     </button>
 
+                    <!-- Mute TTS -->
+                    <button id="mute-tts-btn" class="control-btn" aria-label="Mute voice">
+                        <span class="btn-icon">🔇</span>
+                        <span class="btn-text" id="mute-tts-label">Mute</span>
+                    </button>
+
+                    <!-- Skip speaking this response -->
+                    <button id="skip-tts-btn" class="control-btn" aria-label="Skip speaking">
+                        <span class="btn-icon">⏭️</span>
+                        <span class="btn-text">Skip</span>
+                    </button>
+
                     <!-- AI Model Dropdown -->
                     <div class="dropdown-container">
                         <button id="model-dropdown-btn" class="control-btn model-btn">
@@ -140,12 +152,23 @@
                     </div>
                     
                     <div class="input-container">
-                        <input type="text" class="chat-input" placeholder="Share your story..." id="chat-input">
+                        <button class="mic-btn" id="mic-btn" aria-label="Record voice message">
+                            <span class="mic-icon" id="mic-icon">🎤</span>
+                        </button>
+                        <input type="text" class="chat-input" placeholder="Share your story... or use voice 🎤" id="chat-input">
                         <button class="send-btn" id="send-btn">Send</button>
+                    </div>
+
+                    <!-- Recording indicator (hidden by default) -->
+                    <div class="recording-indicator hidden" id="recording-indicator">
+                        <div class="recording-dot"></div>
+                        <span class="recording-text">Recording...</span>
+                        <span class="recording-timer" id="recording-timer">0:00</span>
+                        <button class="stop-recording-btn" id="stop-recording-btn">Stop & Send</button>
                     </div>
                 </div>
             </div>
-            
+
             <div class="memory-panel" id="memory-panel">
                 <div class="memory-header">
                     <h3>Extracted Memories</h3>
