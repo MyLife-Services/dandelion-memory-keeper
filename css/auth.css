@@ -7,7 +7,6 @@
     --primary-gold-dark: #B8915F;
     --primary-gold-soft: #F5E6D3;
     --primary-gold-glow: #FFD700;
-    
     /* Secondary Palette */
     --secondary-blue: #5B9FD9;
     --secondary-blue-light: #7FB4E3;
@@ -55,13 +54,14 @@
     justify-content: center;
     align-items: center;
     z-index: 1000;
+    -webkit-backdrop-filter: var(--glass-blur-heavy);
     backdrop-filter: var(--glass-blur-heavy);
 }
 
 .auth-modal-content {
     background: var(--dark-surface);
-    backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
     border: 1px solid var(--glass-white-border);
     border-radius: 12px;
     width: 90%;
@@ -410,6 +410,7 @@
     justify-content: center;
     align-items: center;
     z-index: 1000;
+    -webkit-backdrop-filter: blur(5px);
     backdrop-filter: blur(5px);
 }
 
@@ -498,16 +499,9 @@
 .onboarding-btn.primary:hover {
     background: #2563eb;
 }
-
 @media (max-width: 480px) {
     .onboarding-modal-content {
         width: 95%;
         margin: 20px;
     }
-}
-
-
-/* Auth guard: hide entire page until authenticated */
-html.auth-guard body {
-    visibility: hidden;
 }

@@ -7,7 +7,6 @@ class SplashPage {
     constructor(){
         this.setupEventListeners()
         this.setupVideo()
-        this.checkReturningUser()
     }
     /* methods */
     authError(message){
@@ -38,7 +37,6 @@ class SplashPage {
         // Add loading state
         authSubmitBtn.classList.add('loading')
         authSubmitBtn.textContent = 'Processing...'
-        localStorage.setItem('story-collection-used', 'true')
         try { // Authenticate with Dandelion
             const result = await window.Globals.datamanager.submitPassphrase(password, email)
             if(!result){
@@ -53,15 +51,6 @@ class SplashPage {
             authSubmitBtn.classList.remove('loading')
             authSubmitBtn.textContent = 'Sign In'
         }
-    }
-    checkReturningUser(){
-        const hasUsedApp = localStorage.getItem('story-collection-used') === 'true'
-        const hasStories = localStorage.getItem('story_session_exists') === 'true'
-        if(hasUsedApp || hasStories){
-            console.log('👋 Returning user detected')
-            this.showReturningUserContent()
-        } else
-            this.showNewUserContent()
     }
     closeModal(){
         document.getElementById('how-it-works-modal')?.classList.add('hidden')

@@ -4,11 +4,8 @@
  */
 class AppHeader {
     constructor() {
-        this.init();
-    }
-    init() {
-        this.setupEventListeners();
-        console.log('🎛️ App header initialized');
+        this.setupEventListeners()
+        console.log('🎛️ App header initialized')
     }
     setupEventListeners() {
         // Profile dropdown
@@ -108,12 +105,11 @@ class AppHeader {
         if (chatMessages) {
             chatMessages.innerHTML = '';
         }
-        
         // Clear memory panels
         const memoryItems = document.querySelectorAll('.memory-items');
         memoryItems.forEach(container => {
             container.innerHTML = '<div class="memory-placeholder">No data yet</div>';
-        });
+        })
     }
     exportChatBasic() {
         const chatMessages = document.getElementById('chat-messages');

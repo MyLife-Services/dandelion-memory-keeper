@@ -27,14 +27,10 @@
     <link rel="stylesheet" href="css/styles.css?v=1756781571">
     <link rel="stylesheet" href="css/auth.css?v=1756781571">
     <!-- scripts -->
-     <script src="js/config.js"></script><!-- must be first to init Dandelion Datamanager -->
-    <script src="js/auth-guard.js"></script>
-    <script src="js/crypto-utils.js"></script>
+    <script src="js/config.js"></script><!-- must be first to init `Dandelion Datamanager` -->
     <script src="js/onboarding.js"></script>
     <script src="js/app-header.js"></script>
-    <!--
     <script src="js/app.js"></script>
-    -->
 </head>
 <body hidden>
     <!-- App Header -->
@@ -144,11 +140,13 @@
                 <div class="memory-content">
                     <!-- Narrator Section -->
                     <div class="memory-section">
-                        <h4>Narrator</h4>
-                        <div class="memory-items" id="memory-narrator">
-                            <div class="memory-placeholder">No name set yet</div>
+                        <h4>Biographer</h4>
+                        <div class="memory-items" id="memory-bot">
+                            <div class="memory-placeholder"></div>
                         </div>
                     </div>
+                    <!-- dynamic categories -->
+                    <!--
                     <div class="memory-section">
                         <h4>People</h4>
                         <div class="memory-items" id="memory-people">
@@ -179,6 +177,7 @@
                             <div class="memory-placeholder">No events mentioned yet</div>
                         </div>
                     </div>
+                    -->
                 </div>
             </div>
         </div>

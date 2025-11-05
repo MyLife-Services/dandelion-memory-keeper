@@ -79,7 +79,6 @@
     modal.classList.add('flex-visible')
     document.body.style.overflow = 'hidden'
   }
-
   // Public API (kept the same signature)
   window.showPostLoginOnboarding = async function(_user){
     // Local skip
@@ -88,7 +87,7 @@
       if (skip) return
     } catch(_) {}
 
-    // Server skip (durable preference)
+    // Server skip (session preference)
     try {
       const dismissed = await fetchDismissPreference()
       if (dismissed === true) {
@@ -96,22 +95,13 @@
         return
       }
     } catch (_) {}
-
     // If loader is up, wait for bootstrap to complete
     const loader = document.getElementById('app-loader')
     const loaderActive = loader && loader.style.display !== 'none'
-    if (loaderActive) {
-      const onReady = () => {
-        window.removeEventListener('app-bootstrap-complete', onReady)
-        setTimeout(() => showOnboarding(), 200)
-      }
-      try { console.log('[onboarding] waiting for app-bootstrap-complete @', Date.now()) } catch (_) {}
-      window.addEventListener('app-bootstrap-complete', onReady, { once: true })
-      return
-    }
-
-    // Slight delay to let chat UI render
-    setTimeout(() => showOnboarding(), 300)
+    if(loaderActive)
+      window.addEventListener('app-bootstrap-complete', showOnboarding, { once: true })
+    else
+      setTimeout(() => showOnboarding(), 200)
   }
 
   // Firebase-free auto show: run after the app signals readiness
