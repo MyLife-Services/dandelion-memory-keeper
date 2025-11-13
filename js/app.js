@@ -5,6 +5,7 @@ const authCheckTimer=1*60*1000, // 5 minutes
     collectionTypes = { all: '', default: 'memory', memory: 'memory', journal: 'entry', },
     memoryKeeperBotTypes = ['biographer', 'personal-biographer', 'memory-keeper']
 let activeBotId,
+    activeItemId,
     collaboratorBot,
     memoryKeeperBot,
     Datamanager,
@@ -89,28 +90,27 @@ function addMessage(type, agent, content, metadata={}){
     const messagesContainer = document.getElementById('chat-messages')
     if(!messagesContainer)
         return
+    const messageDiv = document.createElement('div')
+    messageDiv.className = `message ${type}`
     
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `message ${type}`;
+    const avatar = document.createElement('div')
+    avatar.className = `message-avatar ${type}`
+    avatar.textContent = type === 'user' ? '👤' : (agent === 'collaborator' ? '🤝' : '🧠')
     
-    const avatar = document.createElement('div');
-    avatar.className = `message-avatar ${type}`;
-    avatar.textContent = type === 'user' ? '👤' : (agent === 'collaborator' ? '🤝' : '🧠');
+    const contentDiv = document.createElement('div')
+    contentDiv.className = 'message-content'
     
-    const contentDiv = document.createElement('div');
-    contentDiv.className = 'message-content';
+    const bubble = document.createElement('div')
+    bubble.className = 'message-bubble'
+    bubble.textContent = content
     
-    const bubble = document.createElement('div');
-    bubble.className = 'message-bubble';
-    bubble.textContent = content;
-    
-    const meta = document.createElement('div');
-    meta.className = 'message-meta';
+    const meta = document.createElement('div')
+    meta.className = 'message-meta'
     
     if (type === 'ai') {
-        const badge = document.createElement('span');
-        badge.className = 'agent-badge';
-        badge.textContent = agent === 'collaborator' ? 'Collaborator' : 'Memory Keeper';
+        const badge = document.createElement('span')
+        badge.className = 'agent-badge'
+        badge.textContent = agent === 'collaborator' ? 'Collaborator' : 'Memory Keeper'
         meta.appendChild(badge);
     }
     
@@ -168,8 +168,10 @@ async function bootstrapApp(Datamanager){
         return
     }
     if(activeBotId !== memoryKeeperBot.id){
-        console.log(`Switching active bot to memory-keeper (${memoryKeeperBot.id})`)
+        console.log(`Switching active bot to memory-keeper (${ memoryKeeperBot.id })`)
         const { bot_id, responses, success: activatedSuccess, version, versionUpdate, } = await Datamanager.botActivate(memoryKeeperBot.id)
+        if(activatedSuccess)
+            activeBotId = memoryKeeperBot.id
     }
     /* 2. fetch memories */
     const responses = await Datamanager.collections(collectionTypes.memory)
@@ -330,71 +332,41 @@ async function onBiographerClick(){
     const proposed = prompt('What would you like my name to be?', currentBotName ?? 'Personal Biographer')
     await updateBotName(proposed)
 }
-async function processChat(message) {
+async function processChat(message){
     console.log('=== MEMORY KEEPER PROCESSING ===', message)
     updateMemoryStatus('Processing...')
-    try {
-        const requestBody = { 
-            message,
-            messageId: messageId()
-        };
-        
-        // Log the input request
-        addLogEntry('input', 'Memory Keeper', {
-            action: 'extract_memories',
-            input_message: message,
-            timestamp: new Date().toISOString()
-        }, true);
-        
-        console.log('Sending request to Memory Keeper API:', requestBody);
-        
-        const response = await fetchWithTimeout(window.API_CONFIG.MEMORY_KEEPER, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(requestBody),
-            timeout: 20000
-        });
-        
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('Memory Keeper API Error:', errorText);
-            
-            // Log the error
-            addLogEntry('error', 'Memory Keeper', {
-                error: `API Error ${response.status}`,
-                details: errorText,
-                timestamp: new Date().toISOString()
-            }, false);
-            
-            throw new Error(`Memory Keeper API error: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        console.log('Memory Keeper response:', data);
-        
-        // Log the output response
-        addLogEntry('output', 'Memory Keeper', {
-            action: 'extract_memories_response',
-            raw_claude_response: data.debugInfo?.rawResponse,
-            extracted_memories: data.memories,
-            timestamp: new Date().toISOString()
-        }, false);
-        const extractedMemories = data.memories;
-        // Do not render memories directly here; rely on SSE 'memory' events to avoid duplicates
-        updateMemoryStatus('Complete');
-    } catch (error) {
-        console.error('Memory Keeper Error:', error);
-        const friendlyMessage = sanitizeErrorForUser(error);
-        updateMemoryStatus('Unable to process memories: ' + friendlyMessage);
-        // Log the error
-        addLogEntry('error', 'Memory Keeper', {
-            error: error.message,
-            friendlyError: friendlyMessage,
-            timestamp: new Date().toISOString()
-        }, false);
+    const request = {
+        botId: activeBotId,
+        itemId: activeItemId,
+        message,
+        timestamp: Date.now(),
     }
+    const { error, responses=[], success=false, } = await Datamanager.submitChat(request, true)
+    const responseTime = Date.now()
+    let agent = 'memory-keeper',
+        agentResponse = `I'm sorry, there was an error processing your request.`,
+        logType = 'output'
+    console.log('Memory Keeper Response:', responses, error, success)
+    if(!success || !responses.length){
+        agent = 'system'
+        agentResponse = error?.message ?? agentResponse
+        logType = 'error'
+    } else
+        agentResponse = responses[0]?.message
+            ?? responses[0]?.text
+            ?? responses[0]?.toString()
+    addMessage('ai', agent, agentResponse, new Date(responseTime).toLocaleTimeString())
+    addLogEntry(logType, agent, {
+        action: 'chat',
+        error,
+        input: message,
+        responses,
+        success,
+        requestDuration: responseTime - request.timestamp,
+        requestTime: request.timestamp,
+        responseTime,
+    }, false)
+    updateMemoryStatus('Ready')
 }
 function redirectToLogin(){
     try {
@@ -562,21 +534,6 @@ function buildMemoryPrimer(memories, caps = { people: 5, places: 5, dates: 3, re
         text = text.slice(0, caps.totalChars - 3) + '...';
     }
     return text;
-}
-// Small helper to enforce client-side timeouts for fetch with Firebase auth
-async function fetchWithTimeout(resource, options={}) {
-    const { timeout=20000, ...rest } = options
-    const timeoutPromise = new Promise((_, reject)=>{
-        const id = setTimeout(() => reject(new Error('Request timed out')), timeout)
-        timeoutPromise.cleanup = () => clearTimeout(id)
-    })
-    try {
-        const response = await Promise.race([fetch(resource, rest), timeoutPromise])
-        return response
-    } finally {
-        if(timeoutPromise.cleanup)
-            timeoutPromise.cleanup()
-    }
 }
 /**
  * Initialize toggle switches
