@@ -7,7 +7,6 @@
     --primary-gold-dark: #B8915F;
     --primary-gold-soft: #F5E6D3;
     --primary-gold-glow: #FFD700;
-    
     /* Secondary Palette */
     --secondary-blue: #5B9FD9;
     --secondary-blue-light: #7FB4E3;
@@ -55,6 +54,7 @@
     justify-content: center;
     align-items: flex-start;
     z-index: 1000;
+    -webkit-backdrop-filter: var(--glass-blur-heavy);
     backdrop-filter: var(--glass-blur-heavy);
     padding-top: 5rem; /* Ensure content starts below header */
     box-sizing: border-box;
@@ -62,8 +62,8 @@
 
 .auth-modal-content {
     background: var(--dark-surface);
-    backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
     border: 1px solid var(--glass-white-border);
     border-radius: 12px;
     width: 90%;
@@ -418,6 +418,7 @@
     justify-content: center;
     align-items: flex-start;
     z-index: 1000;
+    -webkit-backdrop-filter: blur(5px);
     backdrop-filter: blur(5px);
     padding-top: 5rem; /* Ensure content starts below header */
     box-sizing: border-box;
@@ -509,7 +510,6 @@
 .onboarding-btn.primary:hover {
     background: #2563eb;
 }
-
 @media (max-width: 480px) {
     .onboarding-modal {
         padding-top: 4rem; /* Account for mobile header */
@@ -520,10 +520,4 @@
         margin: 0 0 2rem 0; /* Remove default margin, keep bottom spacing */
         max-height: calc(100vh - 5rem); /* Account for mobile header */
     }
-}
-
-
-/* Auth guard: hide entire page until authenticated */
-html.auth-guard body {
-    visibility: hidden;
 }

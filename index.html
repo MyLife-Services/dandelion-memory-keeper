@@ -6,32 +6,27 @@
     <meta name="description" content="Dandelion - AI-powered story collection for preserving life memories">
     <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
     <title>Dandelion - Preserve Your Life Stories with AI</title>
-    
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="assets/Dandelion/favicon-02.png">
-    
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
-    <!-- Open Graph / Facebook -->
+    <!-- OpenGraph / Facebook -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://vibe-agents.onrender.com/">
     <meta property="og:title" content="Dandelion - AI-powered story collection">
     <meta property="og:description" content="Share your life stories with AI - Collaborator and Dandelion agents help capture and organize your memories">
     <meta property="og:site_name" content="Dandelion">
-    
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image">
     <meta property="twitter:url" content="https://vibe-agents.onrender.com/">
     <meta property="twitter:title" content="Dandelion - AI-powered story collection">
     <meta property="twitter:description" content="Share your life stories with AI - Collaborator and Dandelion agents help capture and organize your memories">
-    
-    <!-- Import map for Firebase ESM modules (harmless on splash, used on chat page) -->
-    <script type="importmap" src="/importmap.json"></script>
-
     <link rel="stylesheet" href="css/splash.css?v=1756781571">
+    <!-- scripts -->
+    <script src="js/config.js"></script>
+    <script src="js/splash.js"></script>
 </head>
 <body>
     <!-- Background Video Container -->
@@ -42,7 +37,6 @@
             Your browser does not support the video tag.
         </video>
     </div>
-
     <!-- Landing Page Header -->
     <header id="landing-header" class="landing-header">
         <div class="header-container">
@@ -65,7 +59,7 @@
     <!-- Centered Login Section -->
     <div class="login-section">
         <div class="auth-container">
-            <!-- Auth Toggle -->
+            <!-- Auth Toggle @Mookse: disabled, go to HRP
             <div class="auth-toggle">
                 <button id="sign-in-btn" class="auth-toggle-btn active" data-mode="signin">
                     Sign In
@@ -74,35 +68,23 @@
                     Sign Up
                 </button>
             </div>
-
+            -->
             <!-- Auth Form -->
             <div class="auth-form">
                 <div class="form-group">
-                    <label for="email">Email Address</label>
+                    <label for="email">Member Id or Email</label>
                     <input type="email" id="email" placeholder="your@email.com" />
                 </div>
-
                 <div class="form-group">
-                    <label for="password">Password</label>
+                    <label for="password">Passphrase</label>
                     <input type="password" id="password" placeholder="••••••••" />
                 </div>
-
-                <div id="confirm-password-section" class="form-group hidden">
-                    <label for="confirm-password">Confirm Password</label>
-                    <input type="password" id="confirm-password" placeholder="••••••••" />
-                </div>
-
                 <button id="auth-submit-btn" class="auth-submit-btn">
-                    Sign In
+                    Log In
                 </button>
-
-                <div id="forgot-password-link" class="forgot-password">
-                    <a href="#forgot-password">Forgot your password?</a>
-                </div>
             </div>
         </div>
     </div>
-
     <!-- Footer -->
     <footer class="splash-footer">
         <p>&copy; 2025 Dandelion. Your memories, preserved with care.</p>
@@ -134,12 +116,5 @@
             </div>
         </div>
     </div>
-
-    <!-- Expose environment before config -->
-    <script src="/env.js"></script>
-    <script src="js/config.js"></script>
-    <!-- Firebase client for splash authentication -->
-    <script type="module" src="js/firebase-config.js"></script>
-    <script src="js/splash.js"></script>
 </body>
 </html>

@@ -1,14 +1,17 @@
 # Tool Architecture: Asynchronous Memory Extraction and Streaming
 
 ## Overview
+
 This document describes the server-side tool architecture for extracting memories asynchronously and streaming updates to the client via Server-Sent Events (SSE). It also covers client integration and data storage.
 
 ## Roles
+
 - Collaborator Agent (`/api/collaborator`): Generates empathetic conversational responses.
 - Memory Extractor Tool (internal): Extracts structured memories from user input using Anthropic.
 - Memory Keeper API (`/api/memory-keeper`): REST endpoint that runs the extractor and persists results (also emits SSE after save).
 
 ## Key Endpoints and Modules
+
 - `server.js`
   - `POST /chat` (SSE): Streams collaborator tokens and runs background memory extraction. Emits `memory` SSE events after persistence.
   - `GET /events`: Per-conversation SSE channel. Listens for `memory` events.
@@ -19,6 +22,7 @@ This document describes the server-side tool architecture for extracting memorie
 - `server/tools/memoryExtractor.js`: Executes Anthropic call for extraction (invoked via `executeTool`).
 
 ## Event Flow
+
 1. Client sends a message.
 2. Server runs memory extraction:
    - Via `/chat` SSE: starts background extraction while streaming collaborator tokens.

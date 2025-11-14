@@ -3,31 +3,35 @@
 > **⚠️ FUTURE IMPLEMENTATION PLAN**  
 > This document outlines the planned story processing and RAG system architecture. Most features described here are **not yet implemented** and represent future development phases. Current implementation focuses on basic memory extraction and storage.
 
-## 1) Context & Goals (JTBD)
+## Context & Goals (JTBD)
 - __Job__: Help families capture, organize, and retrieve life stories with minimal effort.
 - __Desired outcomes__: Accurate story extraction, fast retrieval, emotionally resonant conversations.
 - __Alternatives__: Raw chat logs, manual notes, generic note apps without semantic retrieval.
 - __Differentiator__: Agent-assisted extraction + story aggregation + semantic search scoped per user.
 - __Success__: <2s perceived latency for replies; relevant stories retrieved >80% of the time.
 
-## 2) Current vs Planned System Overview
+## Current vs Planned System Overview
 
 ### **Current Implementation (Production)**
-```
+
+```txt
 User → Collaborator (Anthropic) + Memory Keeper (background) → In-memory Storage
 ```
+
 - Memory extraction: `server/tools/memoryExtractor.js` ✅ **IMPLEMENTED**
 - Basic chat with SSE streaming ✅ **IMPLEMENTED**  
 - Firebase authentication ✅ **IMPLEMENTED**
 
 ### **Planned System Architecture (Future)**
-```
+
+```txt
 User → Collaborator (Anthropic) + Memory Keeper (background) → Memory Store
       → RAG Pipeline: Aggregation (OpenAI) → Embeddings (pgvector) → Story Store
       → Retrieval for Agents (RAG Client) → Context-augmented responses
 ```
 
 **Planned Components (Not Yet Implemented):**
+
 - __RAG aggregation__: `server/tools/storyAggregator.js` 🚧 **PLANNED**
 - __RAG orchestration__: `server/tools/ragService.js` 🚧 **PLANNED**
 - __Vector storage & search__: PostgreSQL + pgvector 🚧 **PLANNED**
@@ -35,16 +39,17 @@ User → Collaborator (Anthropic) + Memory Keeper (background) → Memory Store
 - __Agent integration__: `server/tools/ragClient.js` 🚧 **PLANNED**
 - __Database migrations__: Automated migration system 🚧 **PLANNED**
 
-## 3) Domain Model (simplified)
-- __Memory__ (extracted): people, places, dates, events, relationships; references `conversationId`, `userId`.
-- __Story__: aggregated narrative derived from related memories, with `title`, `summary`, `content`, `embedding`, entities arrays; references source memory IDs and conversation IDs.
-- __User__: Firebase UID mapped to internal `users.id` (`firebase_uid` column).
+## Domain Model (simplified)
+
+- *Memory* (extracted): people, places, dates, events, relationships; references `conversationId`, `userId`.
+- *Story*: aggregated narrative derived from related memories, with `title`, `summary`, `content`, `embedding`, entities arrays; references source memory IDs and conversation IDs.
+- *User*: Firebase UID mapped to internal `users.id` (`firebase_uid` column).
 
 See schema initialization in `server/database/index.js`:
 - `stories` table with `embedding vector(1536)` and GIN/IVFFlat indexes
 - `encrypted_memories` for sensitive payload storage
 
-## 4) Key Flows (mapped to code)
+## Key Flows (mapped to code)
 - __SSE Chat__: `POST /chat` in `server.js`
   - Streams Collaborator response (Anthropic)
   - Background Memory Keeper extraction saves to memory store and emits SSE updates
@@ -58,21 +63,21 @@ See schema initialization in `server/database/index.js`:
   - Entity extraction + semantic search for agent prompts
 - __Agent Usage__: `ragClient.getEnrichedContext()` combines retrieval + formatting
 
-## 5) Security & Privacy
+## Security & Privacy
 - __Auth__: Firebase token verified (`verifyFirebaseToken`, `ensureUserScope`) on all RAG endpoints in `server.js`.
 - __User isolation__: Queries include `user_id` filter; stories created with the authenticated `userId`.
 - __Encryption__: `encrypted_memories.encrypted_payload` supported via AES-256-CBC in `server/database/index.js`.
 - __Rate limiting__: `express-rate-limit` on `/api/*`.
 - __CSP/CORS__: Locked down in `server.js` (Helmet + configurable CORS).
 
-## 6) Performance Principles
+## Performance Principles
 - __Model selection__: default `claude-3-5-haiku-latest` for speed.
 - __Parallelism__: Memory extraction runs in background for SSE; combine steps where possible.
 - __Token discipline__: Lower `max_tokens` and prompt size for speed.
 - __Indexes__: IVFFlat for vectors; GIN on entity arrays.
 - __Cold start mitigation__: warming endpoint `/warm` and scheduler (prod only).
 
-## 7) Delivery Phases & Milestones
+## Delivery Phases & Milestones
 
 ### Phase 0 — Baseline Enablement (0.5 day) 🚧 **PLANNED**
 - __Verify env__: `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, Firebase vars, `DATABASE_URL`, `ENCRYPTION_KEY` (64 hex or encryption off).
@@ -108,34 +113,37 @@ See schema initialization in `server/database/index.js`:
 - __Instrumentation__: Log retrieval stats and prompt-size metrics; simple dashboards.
 - __Success__: Users can browse/confirm stories; improved trust and transparency.
 
-## 8) Technical Considerations & Risks
+## Technical Considerations & Risks
 - __Embedding model__: Currently `text-embedding-ada-002` (1536d). Consider `text-embedding-3-small` for cost/quality tradeoff; update dim accordingly.
 - __Type safety__: `storyStore.saveStory()` passes JSON string for vector input; valid for pgvector's text input format. If switching drivers/ORM, confirm vector binding.
 - __Memory source__: `ragService.getAllMemoriesForUser()` is a placeholder; implement against actual memory store when processing global backfills.
 - __Index build__: IVFFlat requires `ANALYZE`/vacuum; ensure index build happens on non-empty tables or plan initial backfill step.
 - __Migration safety__: All migrations use IF NOT EXISTS clauses for idempotency; dual migration system ensures flexibility between auto and manual runs.
 
-## 9) Acceptance Criteria
+## Acceptance Criteria
+
 - __Stories__: Created via `/api/stories/process` with titles, summaries, embeddings.
 - __Search__: `/api/stories/search` returns relevant results with entity filters.
 - __Agent context__: `ragClient.getEnrichedContext()` yields formatted snippets used by Collaborator.
 - __Security__: All endpoints require Firebase auth; user data isolation verified.
 - __Performance__: P50 response <3s; warm path under typical load.
 
-## 10) Next Steps
+## Next Steps
+
 1. Execute Phase 0 checks and run a small end-to-end: extract → process → search.
 2. Choose Phase 1–2 priorities (speed vs. consolidation).
 3. If needed, implement `getAllMemoriesForUser(userId)` for whole-account processing/backfill.
 
 ---
 
-## 11) Industry Best Practices & Research Analysis
+## Industry Best Practices & Research Analysis
 
 ### Digital Storytelling Platform Architecture Best Practices
 
 Based on research into current digital storytelling platforms and memory preservation systems, several key architectural patterns have emerged:
 
 #### **Core Data Architecture Models**
+
 - **Three-Component Framework**: Data foundation + narrative structure + visual elements
 - **Story Object Structure**: Title, summary, content, embeddings, entity arrays (people, places, dates, events)
 - **Memory Aggregation Pattern**: Extract individual facts first, then aggregate into cohesive narratives

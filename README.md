@@ -2,19 +2,28 @@
 
 A web application that helps elderly users share their life stories through conversational AI, featuring two specialized agents that work together to capture and organize memories.
 
+On the backend, Memory Keeper utilizes Dandelion Intelligent Platform for AI (Assistive Intelligence) interaction and storage and retrieval of cherished memories, ideas and creative work.
+
 ## Features
 
 ### 🤝 Collaborator Agent
+
+The Collaborator Agent leverages *Dandelion*'s Biographer functionality and offers:
+
 - Empathetic conversation facilitator
 - Asks thoughtful follow-up questions about family, childhood memories, and life events
 - Maintains warm, conversational tone optimized for elderly users
 
 ### 🧠 Memory Keeper Agent
+
+The Memory Keeper leverages *Dandelion*'s Biographer and Member Avatar functionality and offers:
+
 - Real-time extraction of structured data from conversations
 - Organizes memories into categories: People, Dates, Places, Relationships, Events
 - Provides visual feedback on captured information
 
 ### 🎨 User Interface
+
 - Clean, accessible chat interface adapted from Memorial Mosaic design
 - Large text and high contrast for elderly users
 - Toggle switches for agent metadata and memory display
@@ -24,8 +33,7 @@ A web application that helps elderly users share their life stories through conv
 ## Technology Stack
 
 - **Frontend**: Vanilla JavaScript, Custom CSS with CSS Custom Properties
-- **AI Backend**: Anthropic Claude 3.5 (Haiku default for speed; Sonnet optional)
-- **Deployment**: Render (single Web Service serving both frontend and backend API)
+- **AI Backend**: Dandelion Intelligence Platform via API
 - **Architecture**: Server-backed with SSE streaming (Collaborator) and background tool processing (Memory Keeper)
 
 ## Current Architecture (Demo/Prototype)
@@ -35,7 +43,6 @@ This repo now targets a demo-friendly, single-origin architecture on Render:
 - **Single Render Web Service** serves the static frontend and exposes API endpoints
 - **Collaborator** streams responses to the UI via **SSE** (`POST /chat`)
 - **Memory Keeper** runs as a **background extraction** publishing updates via SSE (`GET /events`)
-- **Backend** runs on **Render** for predictable latency (no cold starts)
 
 See detailed docs in `docs/`:
 
@@ -43,7 +50,6 @@ See detailed docs in `docs/`:
 - `docs/architecture/overview.md`
 - `docs/api.md`
 - `docs/agents.md`
-- `docs/firebase-setup.md`
 - `docs/technical-implementation.md`
 
 ## Quick Start
@@ -55,12 +61,14 @@ See detailed docs in `docs/`:
    - Anthropic API key
 
 2. **Clone the repository**
+
    ```bash
    git clone <repository-url>
-   cd vibe-agents
+   cd dandelion-memory-keeper
    ```
 
 3. **Environment Setup**
+
    ```bash
    # Copy environment template
    cp .env.example .env
@@ -70,11 +78,13 @@ See detailed docs in `docs/`:
    ```
 
 4. **Install Dependencies**
+
    ```bash
    npm install
    ```
 
 5. **Start Development Server**
+
    ```bash
    # Option 1: Use development script (recommended)
    ./scripts/dev.sh
@@ -84,7 +94,8 @@ See detailed docs in `docs/`:
    ```
 
 6. **Access Application**
-   ```
+
+   ```url
    http://localhost:3000
    ```
 
@@ -93,6 +104,7 @@ See detailed docs in `docs/`:
 **Node.js Isolation**: This project uses nvm for Node.js version management to avoid conflicts with other development projects.
 
 **Node.js Version**: 18+ (specified in `.nvmrc`)
+
 ```bash
 # Recommended: Use nvm for version isolation
 nvm use          # Use project-specific version
@@ -106,11 +118,13 @@ nvm install      # Install if version not available
 ```
 
 **Environment Variables**: All configuration in `.env` file
+
 - `ANTHROPIC_API_KEY` - Required for AI agents
 - `NODE_ENV` - development/production  
 - `PORT` - Server port (default: 3000)
 
-**Isolation Benefits**:
+**Isolation Benefits**
+
 - Project-specific Node.js version
 - Isolated npm dependencies
 - No interference with other projects
@@ -166,6 +180,7 @@ ENABLE_ANALYTICS=false
 ## Development Roadmap
 
 ### Phase 1 (Completed)
+
 - [x] Basic UI with mosaic-inspired design
 - [x] Empathetic Collaborator agent (Claude) integrated
 - [x] Memory Keeper tool with Anthropic extraction
@@ -174,6 +189,7 @@ ENABLE_ANALYTICS=false
 - [x] Export functionality
 
 ### Phase 2 (Planned)
+
 - [ ] Voice input support
 - [ ] Enhanced memory visualization
 - [ ] Session persistence and history
@@ -181,6 +197,7 @@ ENABLE_ANALYTICS=false
 - [ ] Advanced export formats (PDF, Word)
 
 ### Phase 3 (Future)
+
 - [ ] Context Enrichment Agent (photo/ancestry integration)
 - [ ] Memory Assessment Agent (healthcare integration)
 - [ ] Family sharing and collaboration features

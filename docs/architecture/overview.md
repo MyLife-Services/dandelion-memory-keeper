@@ -1,16 +1,17 @@
----
-description: Architecture Overview (Render + SSE + Single Agent + Tool)
----
-
 # Architecture Overview
 
 ## Components
+
 - Frontend: Vanilla JS UI (static hosting)
-- Backend: Node/Express service on Render (always-on)
-- LLM: Anthropic (official Node SDK)
-- Streaming: SSE (Server-Sent Events)
+- Backend: Node Koa/Express service (always-on)
+  - **Production**: `https://humanremembranceproject.org`
+  - **Development**: `localhost:3000`
+- LLM(s)
+  - OpenAI Assistant technology (official Node SDK)
+  - Anthropic (official Node SDK) [in @henryjrobinson original]
 
 ## Data Flow
+
 1) Browser POST /chat with {conversationId, messageId, text}
 2) Backend:
    - Starts Collaborator LLM call, streams tokens over SSE to client immediately
