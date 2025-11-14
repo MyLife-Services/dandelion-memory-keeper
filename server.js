@@ -5,6 +5,10 @@ const rateLimit = require('express-rate-limit');
 const path = require('path');
 const Anthropic = require('@anthropic-ai/sdk');
 const { EventEmitter } = require('events');
+const multer = require('multer');
+const fs = require('fs').promises;
+const OpenAI = require('openai');
+const { File } = require('node:buffer');
 require('dotenv').config();
 const { executeTool } = require('./server/tools');
 const memoryStore = require('./server/storage/database');
@@ -22,6 +26,53 @@ app.set('trust proxy', 1);
 // Initialize Anthropic client
 const anthropic = new Anthropic({
     apiKey: process.env.ANTHROPIC_API_KEY,
+});
+
+// Initialize OpenAI client for Whisper transcription (optional)
+const openai = process.env.OPENAI_API_KEY ? new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+}) : null;
+
+// Voice feature toggles & simple circuit breaker
+let voiceEnabled = (process.env.VOICE_ENABLED !== 'false') && !!process.env.OPENAI_API_KEY;
+let voiceConsecutive429 = 0;
+let voiceDownUntil = 0; // epoch ms when breaker auto-resets
+const VOICE_MAX_CONSECUTIVE_429 = parseInt(process.env.VOICE_MAX_CONSECUTIVE_429 || '3', 10);
+const VOICE_COOLDOWN_MS = parseInt(process.env.VOICE_COOLDOWN_MS || `${15 * 60 * 1000}`, 10); // default 15 minutes
+
+function isVoiceTemporarilyDown() {
+    if (!voiceEnabled) return true;
+    if (voiceDownUntil && Date.now() < voiceDownUntil) return true;
+    return false;
+}
+
+function registerVoiceSuccess() {
+    voiceConsecutive429 = 0;
+    voiceDownUntil = 0;
+}
+
+function registerVoice429() {
+    voiceConsecutive429 += 1;
+    if (voiceConsecutive429 >= VOICE_MAX_CONSECUTIVE_429) {
+        voiceDownUntil = Date.now() + VOICE_COOLDOWN_MS;
+        console.warn(`🔇 Voice circuit breaker tripped for ${VOICE_COOLDOWN_MS / 1000}s due to repeated 429s`);
+    }
+}
+
+// Configure multer for audio file uploads (store in /tmp)
+const upload = multer({
+    dest: '/tmp/',
+    limits: {
+        fileSize: 25 * 1024 * 1024, // 25MB max (Whisper limit)
+    },
+    fileFilter: (req, file, cb) => {
+        // Accept audio files
+        if (file.mimetype.startsWith('audio/') || file.mimetype === 'video/webm') {
+            cb(null, true);
+        } else {
+            cb(new Error('Only audio files are allowed'));
+        }
+    }
 });
 
 // Clear memories for authenticated user (optionally scoped to a conversation)
@@ -92,11 +143,28 @@ app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             defaultSrc: ["'self'"],
+            // No inline scripts permitted; all scripts must be from self or allowed origins
             scriptSrc: ["'self'", "https://www.gstatic.com"],
-            styleSrc: ["'self'", "'unsafe-hashes'", "https://fonts.googleapis.com"],
-            imgSrc: ["'self'", "data:", "https:"],
+            // Keep 'unsafe-inline' for styles only if needed; fonts CSS allowed
+            styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+            // Allow data and https images, plus blob for potential generated assets
+            imgSrc: ["'self'", "data:", "https:", "blob:"],
             fontSrc: ["'self'", "https://fonts.gstatic.com"],
-            connectSrc: ["'self'", "https://api.anthropic.com", "https://identitytoolkit.googleapis.com", "https://securetoken.googleapis.com"],
+            // Allow required API endpoints and Firebase services
+            connectSrc: [
+                "'self'",
+                "https://api.anthropic.com",
+                "https://identitytoolkit.googleapis.com",
+                "https://securetoken.googleapis.com",
+                "https://www.googleapis.com",
+                "https://firebasestorage.googleapis.com"
+            ],
+            // Permit audio/video from self and blob: for MediaRecorder/Audio playback
+            mediaSrc: ["'self'", "blob:"],
+            // Backward compat: some browsers still honor audio-src separately
+            audioSrc: ["'self'", "blob:"],
+            // Permit web workers created from blob URLs if ever needed
+            workerSrc: ["'self'", "blob:"],
             objectSrc: ["'none'"],
             baseUri: ["'self'"],
             formAction: ["'self'"],
@@ -105,6 +173,14 @@ app.use(helmet({
         }
     }
 }));
+
+// Permissions-Policy: explicitly allow microphone on self (recording)
+app.use((req, res, next) => {
+    try {
+        res.setHeader('Permissions-Policy', 'microphone=(self)');
+    } catch (_) {}
+    next();
+});
 
 // CORS: use env override, else allow localhost and *.onrender.com (demo)
 const corsOriginsEnv = process.env.CORS_ORIGIN;
@@ -131,6 +207,18 @@ const limiter = rateLimit({
     message: 'Too many requests from this IP, please try again later.'
 });
 app.use('/api/', limiter);
+
+// Stricter rate limits for expensive voice endpoints
+const ttsLimiter = rateLimit({
+    windowMs: parseInt(process.env.TTS_RATE_WINDOW_MS) || 60 * 1000,
+    max: parseInt(process.env.TTS_RATE_MAX) || 10,
+    message: 'Too many TTS requests, please slow down.'
+});
+const transcribeLimiter = rateLimit({
+    windowMs: parseInt(process.env.TRANSCRIBE_RATE_WINDOW_MS) || 60 * 1000,
+    max: parseInt(process.env.TRANSCRIBE_RATE_MAX) || 10,
+    message: 'Too many transcription requests, please slow down.'
+});
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
@@ -666,26 +754,240 @@ app.post('/api/memory-keeper', verifyFirebaseToken, ensureUserScope, async (req,
     }
 });
 
+// Text-to-speech endpoint (OpenAI TTS)
+app.post('/api/tts', ttsLimiter, verifyFirebaseToken, ensureUserScope, async (req, res) => {
+    try {
+        // Check if voice is enabled and not in cooldown
+        if (isVoiceTemporarilyDown()) {
+            return res.status(503).json({
+                error: 'Voice features temporarily unavailable',
+                message: voiceEnabled
+                    ? 'Temporarily disabled due to repeated quota errors. Please try again later.'
+                    : 'Voice is disabled by configuration or missing API key.'
+            });
+        }
+
+        // Check if OpenAI is configured
+        if (!openai) {
+            return res.status(503).json({
+                error: 'Text-to-speech is not available. OpenAI API key not configured.'
+            });
+        }
+
+        const { text, voice = 'nova', speed = 0.9 } = req.body;
+
+        if (!text || text.trim().length === 0) {
+            return res.status(400).json({ error: 'No text provided' });
+        }
+
+        // Limit text length (TTS has 4096 character limit)
+        const maxLength = 4096;
+        const truncatedText = text.length > maxLength
+            ? text.substring(0, maxLength) + '...'
+            : text;
+
+        console.log(`🔊 Generating TTS for ${truncatedText.length} characters with voice: ${voice}`);
+
+        // Generate speech with OpenAI TTS
+        const mp3Response = await openai.audio.speech.create({
+            model: 'tts-1', // Use tts-1-hd for higher quality if needed
+            voice: voice, // Options: alloy, echo, fable, onyx, nova, shimmer
+            input: truncatedText,
+            speed: speed, // 0.25 to 4.0, default 1.0
+            response_format: 'mp3'
+        });
+
+        // Convert response to buffer
+        const buffer = Buffer.from(await mp3Response.arrayBuffer());
+
+        console.log(`✅ TTS generated successfully (${buffer.length} bytes)`);
+        registerVoiceSuccess();
+
+        // Send audio as response
+        res.set({
+            'Content-Type': 'audio/mpeg',
+            'Content-Length': buffer.length,
+            'Cache-Control': 'public, max-age=3600' // Cache for 1 hour
+        });
+        res.send(buffer);
+
+    } catch (error) {
+        console.error('TTS error:', error);
+
+        // Handle specific OpenAI errors
+        const code = error?.code || error?.error?.code || error?.type;
+        const status = error?.status || error?.response?.status;
+        if (code === 'invalid_api_key') {
+            return res.status(500).json({
+                error: 'Text-to-speech service is not configured'
+            });
+        }
+
+        // Handle quota exceeded errors (various shapes)
+        if (code === 'insufficient_quota' || status === 429) {
+            registerVoice429();
+            return res.status(503).json({
+                error: 'Voice features temporarily unavailable',
+                message: 'OpenAI API quota exceeded. Please try again later or contact support.'
+            });
+        }
+
+        res.status(500).json({
+            error: 'Failed to generate speech',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+});
+
+// Voice transcription endpoint (Whisper API)
+app.post('/api/transcribe', transcribeLimiter, verifyFirebaseToken, ensureUserScope, upload.single('audio'), async (req, res) => {
+    let audioFilePath = null;
+
+    try {
+        // Check if voice is enabled and not in cooldown
+        if (isVoiceTemporarilyDown()) {
+            return res.status(503).json({
+                error: 'Voice features temporarily unavailable',
+                message: voiceEnabled
+                    ? 'Temporarily disabled due to repeated quota errors. Please try again later.'
+                    : 'Voice is disabled by configuration or missing API key.'
+            });
+        }
+
+        // Check if OpenAI is configured
+        if (!openai) {
+            return res.status(503).json({
+                error: 'Voice transcription is not available. OpenAI API key not configured.'
+            });
+        }
+
+        if (!req.file) {
+            return res.status(400).json({ error: 'No audio file provided' });
+        }
+
+        audioFilePath = req.file.path;
+        const { mimetype, originalname, size } = req.file;
+        console.log(`🎤 Transcribing audio file: ${audioFilePath} (${size} bytes) mime=${mimetype} name=${originalname}`);
+
+        // Check file size (Whisper has 25MB limit)
+        if (req.file.size > 25 * 1024 * 1024) {
+            return res.status(400).json({
+                error: 'Audio file too large. Maximum size is 25MB.'
+            });
+        }
+
+        // Determine extension for supported formats
+        const mimeToExt = (mt) => {
+            if (!mt) return null;
+            if (mt.includes('webm')) return 'webm';
+            if (mt.includes('ogg')) return 'ogg';
+            if (mt.includes('oga')) return 'oga';
+            if (mt.includes('mp4')) return 'mp4';
+            if (mt.includes('mpeg') || mt.includes('mpga') || mt.includes('mp3')) return 'mp3';
+            if (mt.includes('wav')) return 'wav';
+            if (mt.includes('m4a') || mt.includes('mp4a')) return 'm4a';
+            if (mt.includes('flac')) return 'flac';
+            return null;
+        };
+
+        let ext = mimeToExt(mimetype);
+        if (!ext) {
+            // Try to infer from original filename
+            const m = (originalname || '').match(/\.([A-Za-z0-9]+)$/);
+            if (m) ext = m[1].toLowerCase();
+        }
+        if (!ext) {
+            return res.status(400).json({ error: 'Unsupported or unknown audio format' });
+        }
+
+        // Read temp file and wrap as a Web File with proper name and type
+        const fileBuffer = await fs.readFile(audioFilePath);
+        const webFile = new File([fileBuffer], `upload.${ext}`, { type: mimetype || 'application/octet-stream' });
+
+        // Transcribe with OpenAI Whisper using a proper File object
+        const transcription = await openai.audio.transcriptions.create({
+            file: webFile,
+            model: 'whisper-1',
+            language: 'en', // Can be made dynamic based on user preference
+            response_format: 'json'
+        });
+
+        const transcript = transcription.text;
+
+        if (!transcript || transcript.trim().length === 0) {
+            return res.json({
+                transcript: '',
+                warning: 'No speech detected in audio'
+            });
+        }
+
+        console.log(`✅ Transcription successful: "${transcript.substring(0, 100)}..."`);
+        registerVoiceSuccess();
+
+        res.json({
+            transcript: transcript.trim(),
+            duration: req.file.size / (16000 * 2), // Rough estimate (16kHz, 16-bit audio)
+            timestamp: new Date().toISOString()
+        });
+
+    } catch (error) {
+        console.error('Transcription error:', error);
+
+        // Handle specific OpenAI errors
+        const code = error?.code || error?.error?.code || error?.type;
+        const status = error?.status || error?.response?.status;
+        if (code === 'invalid_api_key') {
+            return res.status(500).json({
+                error: 'Speech recognition service is not configured'
+            });
+        }
+
+        // Handle quota exceeded errors (various shapes)
+        if (code === 'insufficient_quota' || status === 429) {
+            registerVoice429();
+            return res.status(503).json({
+                error: 'Voice features temporarily unavailable',
+                message: 'OpenAI API quota exceeded. Please try again later or contact support.'
+            });
+        }
+
+        res.status(500).json({
+            error: 'Failed to transcribe audio',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    } finally {
+        // Clean up temp file
+        if (audioFilePath) {
+            try {
+                await fs.unlink(audioFilePath);
+                console.log(`🧹 Cleaned up temp file: ${audioFilePath}`);
+            } catch (cleanupError) {
+                console.warn(`Failed to delete temp file: ${cleanupError.message}`);
+            }
+        }
+    }
+});
+
 // Logout endpoint for token invalidation
 app.post('/api/logout', verifyFirebaseToken, (req, res) => {
     try {
         // Firebase tokens are stateless and automatically expire
         // This endpoint serves as a logout notification for server-side cleanup
         console.log(`🚪 User ${req.user.email} logged out`);
-        
+
         // Here you could add token blacklisting if needed:
         // - Add token to Redis blacklist with expiry
         // - Clear any server-side sessions
         // - Log security event
-        
-        res.json({ 
+
+        res.json({
             success: true,
             message: 'Logout successful',
             timestamp: new Date().toISOString()
         });
     } catch (error) {
         console.error('Logout error:', error);
-        res.status(500).json({ 
+        res.status(500).json({
             error: 'Logout failed',
             timestamp: new Date().toISOString()
         });
@@ -796,6 +1098,13 @@ app.get('/api/health', async (req, res) => {
         timestamp: new Date().toISOString(),
         anthropicConfigured: !!process.env.ANTHROPIC_API_KEY,
         openaiConfigured: !!process.env.OPENAI_API_KEY,
+        voice: {
+            enabled: voiceEnabled,
+            breakerActive: isVoiceTemporarilyDown() && voiceEnabled,
+            downUntil: voiceDownUntil || null,
+            consecutive429: voiceConsecutive429,
+            maxConsecutive429: VOICE_MAX_CONSECUTIVE_429
+        },
         database: {
             configured: dbPing.configured,
             ok: dbPing.ok,
@@ -812,6 +1121,15 @@ app.get('/api/health', async (req, res) => {
 // Serve the main app
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+// Multer and general error handling middleware (place before generic handler)
+app.use((err, req, res, next) => {
+    // Multer errors or fileFilter rejections
+    if (err && (err.name === 'MulterError' || /Only audio files are allowed/i.test(err.message || ''))) {
+        return res.status(400).json({ error: 'Invalid audio upload', details: err.message });
+    }
+    return next(err);
 });
 
 // Error handling middleware
@@ -870,3 +1188,11 @@ if (require.main === module) {
 }
 
 module.exports = app;
+
+// Process-level guards to prevent hard crashes
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('⚠️ Unhandled Rejection:', reason);
+});
+process.on('uncaughtException', (err) => {
+    console.error('⚠️ Uncaught Exception:', err);
+});

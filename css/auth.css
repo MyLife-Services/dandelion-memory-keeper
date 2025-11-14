@@ -52,10 +52,12 @@
     background: var(--dark-overlay-700);
     display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: flex-start;
     z-index: 1000;
     -webkit-backdrop-filter: var(--glass-blur-heavy);
     backdrop-filter: var(--glass-blur-heavy);
+    padding-top: 5rem; /* Ensure content starts below header */
+    box-sizing: border-box;
 }
 
 .auth-modal-content {
@@ -66,10 +68,11 @@
     border-radius: 12px;
     width: 90%;
     max-width: 400px;
-    max-height: 90vh;
+    max-height: calc(100vh - 6rem); /* Account for header height and padding */
     overflow-y: auto;
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
     animation: modalSlideIn 0.3s ease-out;
+    margin-bottom: 2rem; /* Extra bottom spacing */
 }
 
 @keyframes modalSlideIn {
@@ -380,9 +383,14 @@
 
 /* Responsive Design */
 @media (max-width: 480px) {
+    .auth-modal {
+        padding-top: 4rem; /* Thinner header on mobile */
+    }
+    
     .auth-modal-content {
         width: 95%;
-        margin: 20px;
+        margin: 0 0 2rem 0; /* Remove default margin, keep bottom spacing */
+        max-height: calc(100vh - 5rem); /* Account for mobile header */
     }
     
     .auth-header {
@@ -408,10 +416,12 @@
     background: rgba(0, 0, 0, 0.7);
     display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: flex-start;
     z-index: 1000;
     -webkit-backdrop-filter: blur(5px);
     backdrop-filter: blur(5px);
+    padding-top: 5rem; /* Ensure content starts below header */
+    box-sizing: border-box;
 }
 
 .onboarding-modal-content {
@@ -419,11 +429,12 @@
     border-radius: 12px;
     width: 92%;
     max-width: 560px;
-    max-height: 90vh;
+    max-height: calc(100vh - 6rem); /* Account for header height and padding */
     overflow-y: auto;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
     animation: modalSlideIn 0.3s ease-out;
     padding: 8px 8px 16px;
+    margin-bottom: 2rem; /* Extra bottom spacing */
 }
 
 .onboarding-header {
@@ -500,8 +511,13 @@
     background: #2563eb;
 }
 @media (max-width: 480px) {
+    .onboarding-modal {
+        padding-top: 4rem; /* Account for mobile header */
+    }
+    
     .onboarding-modal-content {
         width: 95%;
-        margin: 20px;
+        margin: 0 0 2rem 0; /* Remove default margin, keep bottom spacing */
+        max-height: calc(100vh - 5rem); /* Account for mobile header */
     }
 }
